@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+
+# MATLAB
+*.asv
+*.m~
+*.mex*
+slprj/
+codegen/
+*.slxc
+
+# local archives (git keeps the history now)
+*.zip

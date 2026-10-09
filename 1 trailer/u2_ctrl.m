@@ -1,0 +1,9 @@
+function u2_val = u2_ctrl(t, zf, omega, k12, k112, alpha, gamma_val, h_fun)
+%U2_CTRL  Standalone copy of the local function inside calculations.m.
+%   ONE-TRAILER (r=3): only two oscillating terms, no k1112/a1112.
+    [~, a2, a12, a112] = amps(zf, alpha, gamma_val, h_fun);
+    u2_val = a2 ...
+        + (2*k12*omega*abs(a12))^(1/2) * sign(a12) * sin(k12*omega*t) ...
+        - 2*(2*k112*omega)^(2/3) * abs(a112)^(1/3) * sign(a112) ...
+          * cos(2*k112*omega*t);
+end
