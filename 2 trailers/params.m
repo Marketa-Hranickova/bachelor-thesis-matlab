@@ -23,6 +23,27 @@ function P = params()
     % 0.8 is because of convergence map
     P.cap_product = 0.8;
 
+    % ---------------- Lyapunov function -------------------------------------
+    % The controller only ever sees V through its gradient. For a radially
+    % symmetric V = phi(r) with r = ||z|| that collapses to one scalar
+    % factor:
+    %
+    %     a(z) = -G^-1(z)*grad V(z) = -gamma*h(z)*G^-1(z)*z
+    %     h(z) = phi'(r) / (gamma*r)
+    %
+    % so CHANGING THE LYAPUNOV FUNCTION IS CHANGING h_fun -- nothing else
+    % in the code has to move. Candidates:
+    %
+    %   V = gamma*r^2/2              h = @(z) 1                        <- now
+    %   V = (gamma/2)*log(1+r^2)     h = @(z) 1/(1 + norm(z)^2)
+    %   V = gamma*(sqrt(r^2+d^2)-d)  h = @(z) 1/sqrt(norm(z)^2 + d^2)
+    %
+    % A NON-radial V (e.g. a weighted quadratic that fixes the very
+    % different physical scales of z1..z5) does not fit this hook: there
+    % grad V is no longer parallel to z and the closed forms in amps.m
+    % must be re-derived from calculations.m.
+    P.h_fun = @(z) 1;
+
     P.k12   = 18;
     P.k112  = 4;
     P.k1112 = 1;

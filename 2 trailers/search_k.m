@@ -16,6 +16,7 @@ function T = search_k(kmax, eps_override)
     % the loop below supplies its own multipliers
     z0 = P.z0;  t_start = P.t_start;  t_end = P.t_end;  dt = P.dt;
     U1_MAX = P.u1_max;  U2_MAX = P.u2_max;
+    h_fun  = P.h_fun;
 
     fprintf('geometry : d0=%.3f  d1=%.3f  l1=%.3f  l2=%.3f  [m]\n', d0, d1, l1, l2);
     fprintf('coeffs   : alpha=%.6f  kappa=%.6f  theta=%.6f\n', alpha, kappa, theta);
@@ -31,8 +32,9 @@ function T = search_k(kmax, eps_override)
             for c = 1:kmax
                 if satisfies_c1(a, b, c)
                     g  = gamma_max(z0, alpha, kappa, theta, w, a, b, c, ...
-                                   U1_MAX, U2_MAX);
-                    u1 = control_bound(z0, alpha, kappa, theta, gamma, w, a, b, c);
+                                   U1_MAX, U2_MAX, h_fun);
+                    u1 = control_bound(z0, alpha, kappa, theta, gamma, w, ...
+                                       a, b, c, h_fun);
                     rows(end+1, :) = [a, b, c, g, u1];   %#ok<AGROW>
                 end
             end
@@ -45,7 +47,8 @@ function T = search_k(kmax, eps_override)
     T = array2table(rows, 'VariableNames', ...
         {'k12', 'k112', 'k1112', 'gamma_max', 'max_u1'});
 
-    base = gamma_max(z0, alpha, kappa, theta, w, 8, 6, 5, U1_MAX, U2_MAX);
+    base = gamma_max(z0, alpha, kappa, theta, w, 8, 6, 5, ...
+                     U1_MAX, U2_MAX, h_fun);
     fprintf('\n %d admissible triples with k <= %d,  eps = %.2f s\n', ...
             size(rows, 1), kmax, epsilon);
     fprintf(' the paper''s (8,6,5) gives gamma_max = %.3e\n\n', base);

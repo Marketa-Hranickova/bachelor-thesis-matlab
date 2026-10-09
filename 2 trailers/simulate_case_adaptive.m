@@ -26,8 +26,11 @@ function [t_out, z_out, u1_out, u2_out, gamma_out] = simulate_case_adaptive( ...
         frozen(:, j) = z_frozen;
 
         % ---- adaptive gain for this interval -------------------------------
+        % h_fun must go in here too: the gain is chosen from the same
+        % amplitudes the controller then uses, so a mismatch would pick a
+        % gain that violates the limits by exactly the factor h.
         g_hw = gamma_max(z_frozen, alpha, kappa, theta, omega, ...
-                          k12, k112, k1112, u1_max, u2_max);
+                          k12, k112, k1112, u1_max, u2_max, h_fun);
         g_j  = min(g_hw, cap_product/epsilon);
         gamma_int(j) = g_j;
 

@@ -15,7 +15,7 @@ k12 = P.k12;  k112 = P.k112;  k1112 = P.k1112;
 x0 = P.x0;  z0 = P.z0;
 t_start = P.t_start;  t_end = P.t_end;  dt = P.dt;
 
-h_fun  = @(z) 1;
+h_fun  = P.h_fun;    % Lyapunov function lives in params.m
 g1_fun = @(z, alpha, kappa, theta) [1; 0; -z(2); -z(3); kappa*z(2)^3 - z(4)];
 g2_fun = @(z, alpha, kappa, theta) [0; 1; 0; -alpha*z(2)^2; -theta*z(2)*z(3)];
 
