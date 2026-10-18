@@ -3,9 +3,16 @@ function [t_out, z_out, u1_out, u2_out, gamma_out] = simulate_case_adaptive( ...
         epsilon, omega, k12, k112, k1112, ...
         t_start, t_end, dt, h_fun, g1_fun, g2_fun, ...
         u1_max, u2_max, cap_product)
+%SIMULATE_CASE_ADAPTIVE  Like simulate_case.m, but the gain is chosen anew
+%   on every sampling interval: the largest gamma that keeps |u1|, |u2|
+%   within (u1_max, u2_max) at the frozen state (gamma_max.m), capped so
+%   that eps*gamma*h(z) <= cap_product.
+%
+%   g1_fun, g2_fun may be [] -- then the fields come from fields_approx.m.
+%   gamma_out is the gain in use at every output time.
 
-
-    N_int     = ceil((t_end - t_start)/epsilon);
+    % the -1e-9 stops float noise (e.g. 3.0000000000000004) adding an empty interval
+    N_int     = ceil((t_end - t_start)/epsilon - 1e-9);
     t_out     = [];
     z_out     = [];
     z_cur     = z0(:);
@@ -31,14 +38,22 @@ function [t_out, z_out, u1_out, u2_out, gamma_out] = simulate_case_adaptive( ...
         % gain that violates the limits by exactly the factor h.
         g_hw = gamma_max(z_frozen, alpha, kappa, theta, omega, ...
                           k12, k112, k1112, u1_max, u2_max, h_fun);
-        g_j  = min(g_hw, cap_product/epsilon);
+        % contraction cap eps*gamma*h <= cap_product (params.m, rule (2)).
+        % For the quadratic V h = 1 and this is the old eps*gamma <= cap;
+        % for the sqrt / log V h varies with the state and must be included.
+        g_j  = min(g_hw, cap_product/(epsilon*h_fun(z_frozen)));
         gamma_int(j) = g_j;
 
-        odefun = @(t, z) rhs_z(t, z, z_frozen, g1_fun, g2_fun, omega, ...
+        odefun = @(t, z) rhs_approx(t, z, z_frozen, g1_fun, g2_fun, omega, ...
                                k12, k112, k1112, alpha, kappa, theta, ...
                                g_j, h_fun);
 
+        % output grid of this interval; it must END exactly at t_jp1,
+        % otherwise the next interval starts from a state at an earlier time
         tspan_j = t_j:dt:t_jp1;
+        if tspan_j(end) < t_jp1 - 1e-12
+            tspan_j = [tspan_j, t_jp1];
+        end
         if numel(tspan_j) < 2
             tspan_j = [t_j, t_jp1];
         end
@@ -70,12 +85,3 @@ function [t_out, z_out, u1_out, u2_out, gamma_out] = simulate_case_adaptive( ...
     end
 end
 
-
-function dz = rhs_z(t, z, zf, g1_fun, g2_fun, omega, k12, k112, k1112, ...
-                    alpha, kappa, theta, gamma_val, h_fun)
-%RHS_Z  Right-hand side of the nilpotent approximation, both controls
-%   taken from one u_ctrl call.
-    [u1, u2] = u_ctrl(t, zf, omega, k12, k112, k1112, ...
-                      alpha, kappa, theta, gamma_val, h_fun);
-    dz = g1_fun(z, alpha, kappa, theta)*u1 + g2_fun(z, alpha, kappa, theta)*u2;
-end

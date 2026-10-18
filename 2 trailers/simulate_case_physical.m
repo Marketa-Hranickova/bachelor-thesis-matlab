@@ -21,7 +21,8 @@ function [t_out, x_out, z_out, u1_out, u2_out] = simulate_case_physical( ...
 %                                           already the physical driving
 %                                           and steering velocities
 
-    N_int   = ceil((t_end - t_start)/epsilon);
+    % the -1e-9 stops float noise (e.g. 3.0000000000000004) adding an empty interval
+    N_int   = ceil((t_end - t_start)/epsilon - 1e-9);
     t_out   = [];
     x_out   = [];
     x_cur   = x0(:);
@@ -44,7 +45,12 @@ function [t_out, x_out, z_out, u1_out, u2_out] = simulate_case_physical( ...
                                k12, k112, k1112, alpha, kappa, theta, ...
                                gamma_val, h_fun);
 
+        % output grid of this interval; it must END exactly at t_jp1,
+        % otherwise the next interval starts from a state at an earlier time
         tspan_j = t_j:dt:t_jp1;
+        if tspan_j(end) < t_jp1 - 1e-12
+            tspan_j = [tspan_j, t_jp1];
+        end
         if numel(tspan_j) < 2
             tspan_j = [t_j, t_jp1];
         end
@@ -83,18 +89,8 @@ end
 
 function dx = rhs_x(t, x, zf, d0, d1, l1, l2, omega, k12, k112, k1112, ...
                     alpha, kappa, theta, gamma_val, h_fun)
-%RHS_X  Exact kinematics of the car with two off-hooked trailers
-%   (paper, eq. (2)-(3)), driven by the controller.
-    x3 = x(3);  x4 = x(4);  x5 = x(5);
-
-    f15 = sin(x3 - x5)/l2 ...
-          + (d1 + l1)*sin(x4 - x3)*cos(x4 - x5)/(l1*l2);
-    f25 = d0*(d1 + l1)*cos(x3 - x4)*cos(x4 - x5)/(l1*l2) ...
-          - d0*cos(x3 - x5)/l2;
-
-    f1 = [cos(x3); sin(x3); 0; sin(x3 - x4)/l1; f15];
-    f2 = [0; 0; 1; -d0*cos(x3 - x4)/l1; f25];
-
+%RHS_X  Exact kinematics (fields_exact.m), driven by the controller.
+    [f1, f2] = fields_exact(x, d0, d1, l1, l2);
     [u1, u2] = u_ctrl(t, zf, omega, k12, k112, k1112, ...
                       alpha, kappa, theta, gamma_val, h_fun);
     dx = f1*u1 + f2*u2;

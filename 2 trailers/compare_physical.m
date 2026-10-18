@@ -1,7 +1,7 @@
 % COMPARE_PHYSICAL
 % Same controller, two plants:
 %   (a) the nilpotent approximation  z' = u1*g1(z) + u2*g2(z)
-%       -- what simulate_case.m / calculations.m have been showing
+%       -- what simulate_case.m / calculations.m / plots.m show
 %   (b) the exact kinematics         x' = u1*f1(x) + u2*f2(x)
 %       -- what the real robot is
 % The gap between them is the remainder the approximation drops, so this
@@ -16,8 +16,6 @@ x0 = P.x0;  z0 = P.z0;
 t_start = P.t_start;  t_end = P.t_end;  dt = P.dt;
 
 h_fun  = P.h_fun;    % Lyapunov function lives in params.m
-g1_fun = @(z, alpha, kappa, theta) [1; 0; -z(2); -z(3); kappa*z(2)^3 - z(4)];
-g2_fun = @(z, alpha, kappa, theta) [0; 1; 0; -alpha*z(2)^2; -theta*z(2)*z(3)];
 
 % =========================================================================
 %  PART 0 -- self-check of the coordinate transform
@@ -51,8 +49,9 @@ fprintf('\n========================================\n');
 fprintf('  x0      = [%.3f; %.3f; %.1f deg; %.1f deg; %.1f deg]\n', ...
         x0(1), x0(2), rad2deg(x0(3)), rad2deg(x0(4)), rad2deg(x0(5)));
 fprintf('  z0      = [%.4f; %.4f; %.4f; %.4f; %.4f]\n', z0);
-fprintf('  time    : [%.1f, %.1f],  epsilon = %.2f,  gamma = %.3f\n', ...
+fprintf('  time    : [%.1f, %.1f],  epsilon = %.2f,  gamma = %.4e\n', ...
         t_start, t_end, epsilon, gamma);
+fprintf('  V       : %s\n', P.lyap_name);
 fprintf('  k       = (%d, %d, %d)\n', k12, k112, k1112);
 fprintf('========================================\n');
 
@@ -60,7 +59,7 @@ fprintf('\nrunning approximate (z) model ...\n');
 [t_a, z_a, u1_a, u2_a] = simulate_case( ...
     z0, alpha, kappa, theta, gamma, ...
     epsilon, omega, k12, k112, k1112, ...
-    t_start, t_end, dt, h_fun, g1_fun, g2_fun);
+    t_start, t_end, dt, h_fun);
 
 fprintf('running exact (x) model ...\n');
 [t_p, x_p, z_p, u1_p, u2_p] = simulate_case_physical( ...

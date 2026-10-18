@@ -2,9 +2,22 @@ function [t_out, z_out, u1_out, u2_out] = simulate_case( ...
         z0, alpha, kappa, theta, gamma_val, ...
         epsilon, omega, k12, k112, k1112, ...
         t_start, t_end, dt, h_fun, g1_fun, g2_fun)
+%SIMULATE_CASE  Closed loop on the NILPOTENT APPROXIMATION
+%   z' = u1*g1(z) + u2*g2(z), fixed gain gamma_val.
+%
+%   Every epsilon seconds the state is frozen, the controller amplitudes
+%   are computed from it (u_ctrl.m), and ode45 integrates one interval.
+%
+%   g1_fun, g2_fun are optional: leave them out (or pass []) and the fields
+%   come from fields_approx.m.
+%   For the exact kinematics use simulate_case_physical.m, for the
+%   state-dependent gain simulate_case_adaptive.m.
 
+    if nargin < 15, g1_fun = []; end
+    if nargin < 16, g2_fun = []; end
 
-    N_int   = ceil((t_end - t_start)/epsilon);
+    % the -1e-9 stops float noise (e.g. 3.0000000000000004) adding an empty interval
+    N_int   = ceil((t_end - t_start)/epsilon - 1e-9);
     t_out   = [];
     z_out   = [];
     z_cur   = z0(:);
@@ -25,11 +38,16 @@ function [t_out, z_out, u1_out, u2_out] = simulate_case( ...
         frozen(:, j) = z_frozen;
         t_edges(j)   = t_j;
 
-        odefun = @(t, z) rhs_z(t, z, z_frozen, g1_fun, g2_fun, omega, ...
+        odefun = @(t, z) rhs_approx(t, z, z_frozen, g1_fun, g2_fun, omega, ...
                                k12, k112, k1112, alpha, kappa, theta, ...
                                gamma_val, h_fun);
 
+        % output grid of this interval; it must END exactly at t_jp1,
+        % otherwise the next interval starts from a state at an earlier time
         tspan_j = t_j:dt:t_jp1;
+        if tspan_j(end) < t_jp1 - 1e-12
+            tspan_j = [tspan_j, t_jp1];
+        end
         if numel(tspan_j) < 2
             tspan_j = [t_j, t_jp1];
         end
@@ -58,12 +76,3 @@ function [t_out, z_out, u1_out, u2_out] = simulate_case( ...
     end
 end
 
-
-function dz = rhs_z(t, z, zf, g1_fun, g2_fun, omega, k12, k112, k1112, ...
-                    alpha, kappa, theta, gamma_val, h_fun)
-%RHS_Z  Right-hand side of the nilpotent approximation, both controls
-%   taken from one u_ctrl call.
-    [u1, u2] = u_ctrl(t, zf, omega, k12, k112, k1112, ...
-                      alpha, kappa, theta, gamma_val, h_fun);
-    dz = g1_fun(z, alpha, kappa, theta)*u1 + g2_fun(z, alpha, kappa, theta)*u2;
-end

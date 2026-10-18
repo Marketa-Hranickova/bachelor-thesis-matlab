@@ -1,4 +1,13 @@
-
+% CONVERGENCE_MAP  For which (epsilon, gamma) does the controller converge?
+%
+%   Sweeps a grid of sampling periods epsilon and gains gamma, runs a short
+%   simulation of the APPROXIMATE model for each pair and classifies the
+%   outcome: converges / marginal / diverges. The result is compared with
+%   the proof's linear bound eps*gamma = 1 (exact hit) and 2 (breakdown);
+%   that comparison is where P.cap_product = 0.8 in params.m comes from.
+%
+%   Uses the Lyapunov function from params.m. Takes a few minutes
+%   (144 short simulations); shrink eps_list / gamma_list for a quick look.
 
 clc; close all;
 
@@ -8,12 +17,10 @@ k12 = P.k12;  k112 = P.k112;  k1112 = P.k1112;
 z0 = P.z0;  t_start = P.t_start;
 
 h_fun  = P.h_fun;    % Lyapunov function lives in params.m
-g1_fun = @(z, alpha, kappa, theta) [1; 0; -z(2); -z(3); kappa*z(2)^3 - z(4)];
-g2_fun = @(z, alpha, kappa, theta) [0; 1; 0; -alpha*z(2)^2; -theta*z(2)*z(3)];
 
 % ---------------- sweep settings (fast, short horizon) --------------------
 t_end_map = 8;          % seconds -- enough periods to see the trend
-dt_map    = 1e-3;       % coarser than calculations.m's 1e-4, for speed
+dt_map    = 1e-3;       % output step of the short runs
 
 eps_list   = logspace(log10(0.05), log10(16), 12);
 gamma_list = logspace(log10(0.01), log10(3),  12);
@@ -26,14 +33,15 @@ fprintf('Sweeping %d x %d = %d combinations, t_end = %g s ...\n', ...
         numel(eps_list), numel(gamma_list), numel(eps_list)*numel(gamma_list), t_end_map);
 tic
 for i = 1:numel(eps_list)
-    eps_i   = eps_list(i);
-    omega_i = 2*pi/eps_i;
+    Q       = set_epsilon(P, eps_list(i));   % epsilon AND omega together
+    eps_i   = Q.epsilon;
+    omega_i = Q.omega;
     for j = 1:numel(gamma_list)
         g_j = gamma_list(j);
         try
             [~, z_sim] = simulate_case(z0, alpha, kappa, theta, g_j, ...
                 eps_i, omega_i, k12, k112, k1112, ...
-                t_start, t_end_map, dt_map, h_fun, g1_fun, g2_fun);
+                t_start, t_end_map, dt_map, h_fun);
             zf = z_sim(end, :);
         catch
             zf = [NaN NaN NaN NaN NaN];   % solver choked -> treat as divergence
@@ -55,7 +63,7 @@ for i = 1:numel(eps_list)
 end
 fprintf('done in %.1f s\n', toc);
 
-% ---------------- numeric check: real boundary vs. eps*gamma = 1/2 ---------
+% ---------------- numeric check: real boundary vs. eps*gamma = 1 and 2 -----
 fprintf('\n%-8s %14s %10s   %14s %10s\n', ...
         'gamma', 'last conv eps', 'eps*gamma', 'first div eps', 'eps*gamma');
 fprintf('%s\n', repmat('-', 1, 62));

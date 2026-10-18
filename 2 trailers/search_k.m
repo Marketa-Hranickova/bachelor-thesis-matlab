@@ -4,26 +4,27 @@ function T = search_k(kmax, eps_override)
 %   T = search_k(15)        search k = 1..15, epsilon from params.m
 %   T = search_k(15, 8.0)   with epsilon = 8 s
 %
-%   Returns a table; prints the best ten. What usually pays is a SMALL
+%   For every triple that satisfies condition C1 it computes gamma_max (the
+%   largest gain within the velocity limits at P.z0) and max_u1 (worst-case
+%   |u1| at the CURRENT P.gamma). Returns the table sorted by gamma_max and
+%   prints the best ten next to the paper's (8,6,5). What usually pays is a SMALL
 %   k1112: the deepest bracket term carries omega^(3/4) and a factor 6
 %   in u2, so it dominates the demand.
 
     if nargin < 1, kmax = 30; end
     P = params();
-    d0 = P.d0;  d1 = P.d1;  l1 = P.l1;  l2 = P.l2;
-    alpha = P.alpha;  kappa = P.kappa;  theta = P.theta;  beta = P.beta;
-    gamma = P.gamma;  epsilon = P.epsilon;  omega = P.omega;
-    % the loop below supplies its own multipliers
-    z0 = P.z0;  t_start = P.t_start;  t_end = P.t_end;  dt = P.dt;
-    U1_MAX = P.u1_max;  U2_MAX = P.u2_max;
-    h_fun  = P.h_fun;
-
-    fprintf('geometry : d0=%.3f  d1=%.3f  l1=%.3f  l2=%.3f  [m]\n', d0, d1, l1, l2);
-    fprintf('coeffs   : alpha=%.6f  kappa=%.6f  theta=%.6f\n', alpha, kappa, theta);
     if nargin >= 2
-        epsilon = eps_override;
+        P = set_epsilon(P, eps_override);     % epsilon AND omega together
     end
-    w = 2*pi/epsilon;
+    alpha = P.alpha;  kappa = P.kappa;  theta = P.theta;
+    gamma = P.gamma;  epsilon = P.epsilon;  w = P.omega;
+    z0 = P.z0;  U1_MAX = P.u1_max;  U2_MAX = P.u2_max;
+    h_fun  = P.h_fun;
+    % (the loop below supplies its own multipliers k)
+
+    fprintf('geometry : d0=%.3f  d1=%.3f  l1=%.3f  l2=%.3f  [m]\n', P.d0, P.d1, P.l1, P.l2);
+    fprintf('coeffs   : alpha=%.6f  kappa=%.6f  theta=%.6f\n', alpha, kappa, theta);
+    fprintf('V        : %s,  max_u1 column at gamma = %.4e\n', P.lyap_name, gamma);
 
 
     rows = zeros(0, 5);
@@ -55,7 +56,7 @@ function T = search_k(kmax, eps_override)
     fprintf('%6s %6s %8s %14s %12s %10s\n', ...
             'k12', 'k112', 'k1112', 'gamma_max', 'max|u1|', 'vs paper');
     for i = 1:min(10, size(rows, 1))
-        fprintf('%6d %6d %8d %14.4e %12.1f %9.2fx\n', ...
+        fprintf('%6d %6d %8d %14.4e %12.3f %9.2fx\n', ...
                 rows(i,1), rows(i,2), rows(i,3), rows(i,4), rows(i,5), ...
                 rows(i,4)/base);
     end

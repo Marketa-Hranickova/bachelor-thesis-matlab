@@ -1,7 +1,8 @@
-% plots.m -- figures for the single simulated case.
+% PLOTS  Figures for the single simulated case.
 %
-% Run this; it calls calculations.m, which calls params.m.
-% Three figures: states, controls, convergence.
+%   Runs calculations.m (which reads params.m) and draws three figures:
+%   states, controls against the TurtleBot3 limits, convergence of ||z||.
+%   Approximate model only -- for the exact kinematics see compare_physical.m.
 
 run('calculations.m');
 
@@ -10,8 +11,7 @@ col_main  = [0.00 0.20 0.70];    % blue
 col_alt   = [0.85 0.33 0.10];    % orange
 col_limit = [0.45 0.45 0.45];    % grey, for the hardware limits
 
-U1_MAX = 0.22;                   % TurtleBot3 Burger  [m/s]
-U2_MAX = 2.84;                   % TurtleBot3 Burger  [rad/s]
+% U1_MAX, U2_MAX come from params.m (via calculations.m)
 
 state_labels = {'z_1', 'z_2', 'z_3', 'z_4', 'z_5'};
 geom_str = sprintf('d_0=%.3f, l_1=%.3f, d_1=%.3f, l_2=%.3f m', d0, l1, d1, l2);
@@ -60,7 +60,7 @@ xlabel('Time [s]');
 % =========================================================================
 % ||z(t)|| on a log axis: exponential convergence shows as a straight line.
 figure('Name', 'Convergence', 'NumberTitle', 'off');
-semilogy(t_sim, max(sqrt(V_sim), eps), 'Color', col_main, 'LineWidth', 1.5);
+semilogy(t_sim, max(normz_sim, realmin), 'Color', col_main, 'LineWidth', 1.5);
 grid on
 xlabel('Time [s]');
 ylabel('||z(t)||');
@@ -74,11 +74,11 @@ r2 = max(abs(u2_sim))/U2_MAX;
 fprintf('\n========================================\n')
 fprintf('  Control demand vs TurtleBot3 Burger\n')
 fprintf('========================================\n')
-fprintf('  max |u1| = %10.2f m/s    limit %.2f    -> %8.0f x over\n', ...
-        max(abs(u1_sim)), U1_MAX, r1);
-fprintf('  max |u2| = %10.2f rad/s  limit %.2f    -> %8.0f x over\n', ...
-        max(abs(u2_sim)), U2_MAX, r2);
-if r1 > 1 || r2 > 1
+fprintf('  max |u1| = %8.4f m/s    limit %.2f    -> %6.1f %% of the limit\n', ...
+        max(abs(u1_sim)), U1_MAX, 100*r1);
+fprintf('  max |u2| = %8.4f rad/s  limit %.2f    -> %6.1f %% of the limit\n', ...
+        max(abs(u2_sim)), U2_MAX, 100*r2);
+if r1 > 1 + 1e-4 || r2 > 1 + 1e-4      % 1e-4: P.gamma is rounded to 5 digits
     fprintf('  -> the commanded controls do NOT fit on this robot.\n');
 else
     fprintf('  -> the commanded controls fit within the limits.\n');
