@@ -5,9 +5,8 @@ function [alpha, kappa, theta, beta, M0] = offhooked_coeffs(d0, d1, l1, l2)
 %   M0                    : the frame F(0) = [f1, f2, [f1,f2],
 %                           [f1,[f1,f2]], [f1,[f1,[f1,f2]]]] at the
 %                           origin, which defines the privileged
-%                           coordinates (see x_to_z.m / z_to_x.m).
+%                           coordinates (see x_to_z.m / z_to_x in trailer2.m).
 %   Older calls asking for only four outputs keep working.
-
 
     alpha = ( d0^3*( l1^3 + l1^2*l2 - l1*l2^2 - d1*l2*(d1 + l2) ) ...
             + d0*l1^3*( d0*(l1 + 2*l2) + l2*(l1 + l2) ) ) ...

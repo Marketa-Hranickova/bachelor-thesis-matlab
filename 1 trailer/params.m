@@ -15,9 +15,9 @@ function P = params(epsilon)
 %       controller would oscillate at the wrong frequency, silently).
 %       NOTE the gain is NOT retuned: P.gamma stays as tuned for the
 %       epsilon below;
-%     * change delta (or the Lyapunov function) in THIS file -- P.h_fun is
-%       built from P.delta once, so editing P.delta afterwards does
-%       nothing to h_fun;
+%     * change c (or delta, or the Lyapunov function) in THIS file -- P.h_fun is
+%       built from P.c_log once, so editing P.c_log afterwards does
+%       nothing to h_fun (and P.gamma has to be retuned for the new V);
 %     * P.x0 is in DEGREES for the angles (x0_to_z0 below takes degrees), unlike
 %       "2 trailers", where P.x0 is in radians. Convert with deg2rad before
 %       calling the exact-kinematics simulator.
@@ -30,7 +30,6 @@ function P = params(epsilon)
     % ---------------- geometry ---------------------------------------------
     %   d0 : car rear axle  -> hitch          [m]
     %   l1 : hitch          -> trailer axle   [m]
-    %
     % measured on the assembled hardware, 2026-09-15 (same car+hitch+trailer1
     % as in the "2 trailers" folder -- d1, l2 don't apply here, there is no
     % second trailer)
@@ -40,19 +39,16 @@ function P = params(epsilon)
     P.alpha = one_trailer_coeff(P.d0, P.l1);   % local function at the end of this file
 
     % ---------------- controller --------------------------------------------
-    % --- tuned for P.x0 below, V = gamma*(sqrt(r^2+d^2)-d), k=(3,2).
+    % --- tuned for P.x0 below, V = gamma/(2c)*log(1+c*r^2), c = 10 (Victoria's), k=(3,2).
     % Largest gain meeting BOTH constraints at every point of the ray --
     % amplitude (control_bound <= 0.22, 2.84) and contraction
     % (eps*gamma*h(r) <= cap_product) -- and then VERIFIED by a full
     % oscillating simulation against the EXACT kinematics, run past the
-    % target, not just to it:
-    %   eps=3 -> gamma=1.39e-03, 0.1% of ||z0|| at 654 s
-    %   eps=5 -> gamma=3.20e-03, 0.1% at 280 s, |u1| 0.214  <- in use
-    %   eps=7 -> gamma=2.29e-03, 0.1% at 392 s
-    % All of eps = 2..7 converge and stay inside the limits, so this is
-    % not near a cliff. Re-check after ANY change to x0, k or delta.
-    %   old values: gamma = 0.27, eps = 3.38
-    P.gamma   = 3.2028e-03;
+    % target, not just to it. Re-check after ANY change to x0, k or the Lyapunov function.
+    % Result for eps = 5:
+    %   eps=5 -> gamma=2.1143e-02, 0.1% at 445 s (exact kinematics), |u1| 0.214, |u2| 0.37  <- in use
+    %            (gradient-flow estimate 492 s; ray_gain gives gamma, eps*gamma*hmax = 0.11)
+    P.gamma   = 2.1143e-02;
     P.epsilon = 5;
     if nargin >= 1 && ~isempty(epsilon), P.epsilon = epsilon; end   % params(eps)
     P.omega   = 2*pi / P.epsilon;
@@ -73,18 +69,15 @@ function P = params(epsilon)
     %     a(z) = -gamma*h(z)*G^-1(z)*z,   h(z) = phi'(r)/(gamma*r)
     % so CHANGING V IS CHANGING h_fun. Candidates:
     %   V = gamma*r^2/2              h = @(z) 1
-    %   V = (gamma/2)*log(1+r^2)     h = @(z) 1/(1 + norm(z)^2)
-    %   V = gamma*(sqrt(r^2+d^2)-d)  h = @(z) 1/sqrt(norm(z)^2 + d^2)   <- in use
-    % The third one holds the control at the limit all the way in instead
-    % of wasting headroom near the goal. For this start state, with the
-    % largest admissible gain of each (gamma_ray in trailer1.m) and the time
-    % from eta_ray, to reach 0.1% of ||z0||: quadratic 27 min, log c=10 8 min,
-    % sqrt delta=0.02 4.6 min (table: trailer1('compare_V')). delta must be
-    % set BEFORE the handle is
-    % created -- an anonymous function freezes the values it captures.
-    P.delta = 0.02;
-    P.h_fun = @(z) 1/sqrt(norm(z)^2 + P.delta^2);
-    P.lyap_name = sprintf('sqrt, delta = %g', P.delta);   % label for printouts
+    %   V = gamma/(2c)*log(1+c*r^2)  h = @(z) 1/(1 + c*norm(z)^2)   <- in use, c = 10 (Victoria's)
+    %   V = gamma*(sqrt(r^2+d^2)-d)  h = @(z) 1/sqrt(norm(z)^2 + d^2)
+    % Victoria's log V (her trailers2.m), c = 10. c must be set BEFORE the handle is created.
+    P.c_log = 10;
+    P.h_fun = @(z) 1/(1 + P.c_log*norm(z)^2);
+    P.lyap_name = sprintf('log, c = %g (Victoria)', P.c_log);
+    % the sqrt V used before (gamma = 3.2028e-03 for it):
+    %   P.delta = 0.02;  P.h_fun = @(z) 1/sqrt(norm(z)^2 + P.delta^2);
+    %   P.lyap_name = sprintf('sqrt, delta = %g', P.delta);
 
     P.k12   = 3;      % search_k ranks the pairs that pass the heuristic
     P.k112  = 2;      % screen; (3,2) came out on top
@@ -94,34 +87,25 @@ function P = params(epsilon)
     % here. z0 is its image in privileged coordinates (x0_to_z0, below):
     %     z1 = x1,  z2 = phi,  z3 = -x2,
     %     z4 = l1*x2 - d0*l1^2/(d0+l1)*phi - l1^3/(d0+l1)*theta1
-    %
     % Always sanity-check a new z0 by converting it back: an earlier default
     % [1;-2;2;-1] was just the 2-trailer z0 truncated to 4 entries and
     % corresponded to theta1 = 301.5 rad (48 full turns!).
-    %
-    % The gain above was tuned for THIS pose (0.2 m / 45 deg). Earlier
-    % tunings in older notes belong to other poses, e.g. the gain 0.27 for
-    % x = (0.036 m, 0.003 m, 2.1 deg, 1.4 deg); at the present pose it would
-    % exceed |u1| by a factor of 5. Idea from that time, not tested since:
-    % a start far along the track but with y, phi, theta1 near zero costs
-    % little control, because a12 and a112 only contain z1 through products
-    % with z2, z3.
     P.x0      = [-0.2; -0.2; 45; 45];   % [x1; x2; phi; theta1], angles in degrees
     P.z0      = x0_to_z0(P.x0, P.d0, P.l1);
     
     P.t_start = 0;
-    P.t_end   = 400;   % 0.1% of ||z0|| is reached at ~280 s
-    P.dt      = 2e-3;  % fastest oscillation is k12*omega = 3.8 rad/s now
+    P.t_end   = 400;
+    P.dt      = 2e-3;
+
+    % ---------------- where thesis_figures writes the PDFs ------------------
+    P.fig_dir = fullfile(fileparts(mfilename('fullpath')), 'figures');   % next to this file; created on demand
 
     % ---------------- hardware limits ---------------------------------------
     P.u1_max = 0.22;      % TurtleBot3 Burger [m/s]
     P.u2_max = 2.84;      % TurtleBot3 Burger [rad/s]
 end
 
-
-% =========================================================================
-%  helpers (moved here from their own files; only params.m needs them)
-% =========================================================================
+% ---- helpers (moved here from their own files; only params.m needs them) ----
 
 function alpha = one_trailer_coeff(d0, l1)
 %ONE_TRAILER_COEFF  The single coupling coefficient for the CAR + ONE
@@ -146,7 +130,6 @@ function alpha = one_trailer_coeff(d0, l1)
 
     alpha = d0*(d0 + l1)/2;
 end
-
 
 function z0 = x0_to_z0(x0, d0, l1)
 %X0_TO_Z0  Convert a physical initial configuration into the privileged
@@ -182,8 +165,8 @@ function z0 = x0_to_z0(x0, d0, l1)
 
 x0 = x0(:);
 x1 = x0(1); x2 = x0(2);
-x3 = deg2rad(x0(3));   % phi
-x4 = deg2rad(x0(4));   % theta1
+x3 = deg2rad(x0(3));
+x4 = deg2rad(x0(4));
 
 z0 = [ x1;
        x3;

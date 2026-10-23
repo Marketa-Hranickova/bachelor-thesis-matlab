@@ -1,12 +1,16 @@
-function P = params()
+function P = params(epsilon)
 %PARAMS  Every number of the two-trailer study, in one struct P.
 %
 %   P = params()   is called by every script and simulator; change numbers
 %   HERE and nowhere else.
+%   P = params(4)  the same, but with epsilon = 4 s (omega follows).
 %
 %   Two rules that keep P consistent:
-%     * change epsilon with  P = set_epsilon(P, eps)  -- it updates omega
-%       too (P.omega is derived from P.epsilon below);
+%     * change epsilon with  params(eps)  or by editing P.epsilon below --
+%       P.omega is derived from P.epsilon, so never overwrite P.epsilon on
+%       an existing P (P.omega would keep the old value and the controller
+%       would oscillate at the wrong frequency, silently). The gain is NOT
+%       retuned: P.gamma stays as set below;
 %     * change delta (or the Lyapunov function) in THIS file -- P.h_fun is
 %       built from P.delta once, so editing P.delta afterwards does
 %       nothing to h_fun.
@@ -49,13 +53,14 @@ function P = params()
     % time at these settings. P.t_end below only shows the first stretch.
     P.gamma   = 2.7498e-05;
     P.epsilon = 3;
+    if nargin >= 1 && ~isempty(epsilon), P.epsilon = epsilon; end
     P.omega   = 2*pi / P.epsilon;
 
     % Safety cap on eps*gamma*h for the ADAPTIVE-gain controller
-    % (compare_gain.m, simulate_case_adaptive.m) and compare_V.m. The proof's linear
+    % (compare_gain, simulate_case_adaptive) and compare_V (all in trailer2.m). The proof's linear
     % bound ||z(eps)|| <= |1-eps*gamma|*||z0|| predicts an exact hit at
     % eps*gamma = 1 and a breakdown around eps*gamma = 2.
-    % 0.8 = safety margin below 1, read off convergence_map.m.
+    % 0.8 = safety margin below 1, read off convergence_map.
     P.cap_product = 0.8;
 
     % ---------------- Lyapunov function -------------------------------------
@@ -68,22 +73,18 @@ function P = params()
     %
     % so CHANGING THE LYAPUNOV FUNCTION IS CHANGING h_fun -- nothing else
     % in the code has to move. Candidates:
-    %
     %   V = gamma*r^2/2                 h = @(z) 1                 (quadratic)
     %   V = gamma/(2c)*log(1+c*r^2)     h = @(z) 1/(1 + c*norm(z)^2)  (log, Grushkovskaya)
     %   V = gamma*(sqrt(r^2+d^2)-d)     h = @(z) 1/sqrt(norm(z)^2 + d^2) (sqrt)  <- in use
-    %
-    % compare_V.m ranks these under the velocity limits.
-    %
+    % compare_V (trailer2.m) ranks these under the velocity limits.
     % A NON-radial V (e.g. a weighted quadratic that fixes the very
     % different physical scales of z1..z5) does not fit this hook: there
-    % grad V is no longer parallel to z and the closed forms in amps.m
-    % must be re-derived (derive_symbolic.m).
+    % grad V is no longer parallel to z and the closed forms in amps
+    % must be re-derived (trailer2('derive_symbolic')).
 
-    %P.h_fun = @(z) 1;
     P.delta = 0.005;  % with eps=3, (2) is slack, so delta can be small
     P.h_fun = @(z) 1/sqrt(norm(z)^2 + P.delta^2);
-    P.lyap_name = sprintf('sqrt, delta = %g', P.delta);   % label for printouts
+    P.lyap_name = sprintf('sqrt, delta = %g', P.delta);
 
     P.k12   = 14;      % was (18,4,1); (14,5,1) won the C1-admissible
     P.k112  = 5;       % search at every epsilon tried
@@ -97,6 +98,9 @@ function P = params()
     % start state [x1 x2 phi theta1 theta2], angles in RADIANS
     P.x0 = [-0.2; -0.2; deg2rad(45); deg2rad(45); deg2rad(45)];
     P.z0 = x_to_z(P.x0, P.d0, P.d1, P.l1, P.l2);
+
+    % ---------------- where thesis_figures writes the PDFs ------------------
+    P.fig_dir = fullfile(fileparts(mfilename('fullpath')), 'figures');   % next to this file; created on demand
 
     % ---------------- hardware limits, TurtleBot3 Burger --------------------
     P.u1_max = 0.22;      % m/s

@@ -46,7 +46,6 @@ function varargout = trailer1(task, varargin)
     end
 end
 
-
 function fns = function_table()
 %FUNCTION_TABLE  Name -> handle of every function in this file, so that
 %   trailer1('name', ...) can reach them (handles to local functions can
@@ -79,7 +78,6 @@ function fns = function_table()
         'heuristic_no_multiple', @heuristic_no_multiple);
 end
 
-
 function show_menu()
     fprintf('\ntrailer1(task, ...)   -- one trailer, r = 3, numbers in params.m\n\n');
     fprintf('  trailer1(''selftest'')           does the code still compute what it did before (~20 s)\n');
@@ -94,11 +92,7 @@ function show_menu()
     fprintf('  Symbolic derivation: derive.m (needs the Symbolic Math Toolbox).\n\n');
 end
 
-
-% =========================================================================
-%  TASKS -- what you run
-% =========================================================================
-
+% ---- TASKS -- what you run ----
 
 function selftest()
 %SELFTEST  ONE-TRAILER folder: does it still compute what it computed before?
@@ -109,9 +103,10 @@ function selftest()
 %     3. a 12 s closed-loop run of all three simulators,
 %   against reference values, and prints PASSED or which number moved.
 %
-%   The references were produced on 18 Oct 2026 with params.m as it was
-%   then (gamma = 3.2028e-03, eps = 5, k = (3,2), sqrt V with delta = 0.02,
-%   x0 = (-0.2, -0.2, 45, 45 deg)). If you change those ON PURPOSE, this
+%   The references were produced on 23 Oct 2026 with params.m as it is
+%   now (gamma = 2.1143e-02, eps = 5, k = (3,2), Victoria's log V with
+%   c = 10, x0 = (-0.2, -0.2, 45, 45 deg)). Before that they were made for
+%   the sqrt V (delta = 0.02, gamma = 3.2028e-03). If you change those ON PURPOSE, this
 %   test fails on purpose: check the new numbers, then update the table.
 
 P = params();
@@ -122,18 +117,18 @@ K = {P.omega, P.k12, P.k112};
 ref.alpha  = 1.132750000000000e-02;
 ref.z0     = [-2.000000000000000e-01  7.853981633974483e-01 ...
                2.000000000000000e-01 -2.168101725068444e-02];
-ref.bound  = [ 2.119078228329150e-01  3.900679149740466e-01];
-ref.gmax   =   3.550395847357964e-03;
-ref.uctrl  = [ 1.121128800760134e-01  6.258538533368191e-02];   % at t = 0.37 s
+ref.bound  = [ 1.853919105523241e-01  3.425117712486228e-01];
+ref.gmax   =   3.388979397850971e-02;
+ref.uctrl  = [ 9.867208209915458e-02  5.775493891793783e-02];   % at t = 0.37 s
 
 % 12 s runs; the ODE solver may differ in the last digits between MATLAB
 % and Octave, hence the looser tolerance for these
-ref.z_approx = [-2.474523528968e-01  7.832446761761e-01  2.374795922937e-01 -8.751414946495e-03];
-ref.u_approx = [ 2.132600407082e-01  3.902267054966e-01];
+ref.z_approx = [-2.447674483114e-01  7.909991514118e-01  2.357674500212e-01 -1.017954713026e-02];
+ref.u_approx = [ 1.874920948451e-01  3.437566059164e-01];
 ref.z_adapt  = [-2.478831391779e-01  7.804096868508e-01  2.376370100693e-01 -8.390606257002e-03];
 ref.u_adapt  = [ 2.200000000000e-01  4.045503847606e-01];
-ref.x_exact  = [-2.331515570860e-01 -2.334255561516e-01  7.831352153506e-01 -6.760406833783e-01];
-ref.u_exact  = [ 2.119078228329e-01  3.900679149740e-01];
+ref.x_exact  = [-2.310717573053e-01 -2.319120710183e-01  7.909263190036e-01 -3.119159139290e-01];
+ref.u_exact  = [ 1.864540281977e-01  3.428780580405e-01];
 
 % ---- 1. geometry-only numbers and the coordinate map ----------------------
 n_fail = n_fail + selftest_check('alpha', P.alpha, ref.alpha, 1e-12);
@@ -180,7 +175,6 @@ else
 end
 end
 
-
 function bad = selftest_check(label, got, want, tol)
 %SELFTEST_CHECK  Compare two numeric vectors; print one line; return 1 if they differ.
     err = max(abs(got(:) - want(:)));
@@ -189,7 +183,6 @@ function bad = selftest_check(label, got, want, tol)
     fprintf('  [%s] %-26s max |difference| = %.2e  (tol %.0e)\n', tag, label, err, tol);
     bad = double(~ok);
 end
-
 
 function [t_sim, z_sim, u1_sim, u2_sim, normz_sim] = calculations()
 % CALCULATIONS  One closed-loop simulation of the ONE-TRAILER system
@@ -212,10 +205,8 @@ function [t_sim, z_sim, u1_sim, u2_sim, normz_sim] = calculations()
     fprintf('geometry : d0=%.3f  l1=%.3f  [m]\n', d0, l1);
     fprintf('coeff    : alpha=%.6f\n', alpha);
 
-    % =========================================================================
-    %  One closed-loop simulation (approximate model, fixed gain, V from params.m)
-    % =========================================================================
-    h_fun = P.h_fun;    % Lyapunov function lives in params.m
+    % ---- One closed-loop simulation (approximate model, fixed gain, V from params.m) ----
+    h_fun = P.h_fun;
 
     fprintf('\n========================================\n')
     fprintf('  Simulation\n')
@@ -237,21 +228,17 @@ function [t_sim, z_sim, u1_sim, u2_sim, normz_sim] = calculations()
     fprintf('  max |u1|    : %.3f  (limit %.2f)\n', max(abs(u1_sim)), U1_MAX);
     fprintf('  max |u2|    : %.3f  (limit %.2f)\n', max(abs(u2_sim)), U2_MAX);
 
-    % state norm along the trajectory (every radial V is a function of it)
     normz_sim = sqrt(sum(z_sim.^2, 2));
     fprintf('  ||z(0)|| = %.6f  ->  ||z(end)|| = %.6f\n', normz_sim(1), normz_sim(end));
 
     fprintf('\n=== Done. ===\n')
 
-    % Called as a command (trailer1('calculations')) the results are left in
-    % the base workspace for inspection; called with outputs they are returned.
     if nargout == 0
         assignin('base', 't_sim', t_sim);       assignin('base', 'z_sim', z_sim);
         assignin('base', 'u1_sim', u1_sim);     assignin('base', 'u2_sim', u2_sim);
         assignin('base', 'normz_sim', normz_sim);
     end
 end
-
 
 function plots()
 % PLOTS  Figures for the ONE-TRAILER (r=3, 4-state) simulation.
@@ -266,11 +253,9 @@ function plots()
     P = params();
     U1_MAX = P.u1_max;  U2_MAX = P.u2_max;
 
-    col     = [0.00 0.20 0.70];     % approximate (nilpotent) model
-    col_ex  = [0.85 0.33 0.10];     % exact kinematics
+    col     = [0.00 0.20 0.70];
+    col_ex  = [0.85 0.33 0.10];
 
-    % Always a fresh run with the current params.m (the old script reused
-    % whatever was left in the workspace, which could be stale).
     [t_sim, z_sim, u1_sim, u2_sim, normz_sim] = calculations();
 
     % The SAME controller on the exact kinematics. u1, u2 are not "converted"
@@ -339,7 +324,6 @@ function plots()
     end
 end
 
-
 function compare_physical()
 % COMPARE_PHYSICAL
 % Same controller, two plants, ONE TRAILER (r = 3):
@@ -357,7 +341,7 @@ function compare_physical()
     k12 = P.k12;  k112 = P.k112;
     z0 = P.z0;  t_start = P.t_start;  t_end = P.t_end;  dt = P.dt;
 
-    h_fun  = P.h_fun;                       % Lyapunov function lives in params.m
+    h_fun  = P.h_fun;
 
     % CAREFUL: P.x0 stores the angles in DEGREES (params.m converts them), but
     % the physical simulation integrates radians.
@@ -406,7 +390,6 @@ function compare_physical()
         fprintf(2, '  *** the EXACT model exceeds a limit -- do not trust this tuning ***\n');
     end
 
-    % drift between the two models, on a common grid
     t_c  = linspace(t_start, min(t_a(end), t_p(end)), 2000).';
     drift = sqrt(sum((interp1(t_a, z_a, t_c) - interp1(t_p, z_p, t_c)).^2, 2));
     fprintf('\n--- cost of the nilpotent approximation ---\n');
@@ -445,12 +428,10 @@ function compare_physical()
     fprintf('\n=== Done. ===\n');
 end
 
-
 function s = deal_hit(t, n, target)
     i = find(n <= target, 1);
     if isempty(i), s = 'never'; else, s = sprintf('%.0f s', t(i)); end
 end
-
 
 function compare_gain()
 % COMPARE_GAIN  Fixed vs. adaptive, hardware-aware gain, and how the
@@ -476,7 +457,7 @@ function compare_gain()
     z0 = P.z0;  t_start = P.t_start;  t_end = P.t_end;  dt = P.dt;
     U1_MAX = P.u1_max;  U2_MAX = P.u2_max;
 
-    h_fun  = P.h_fun;    % Lyapunov function lives in params.m
+    h_fun  = P.h_fun;
 
     fprintf('geometry : d0=%.3f  l1=%.3f  [m]\n', P.d0, P.l1);
     fprintf('z0 = [%g %g %g %g],  eps = %g,  k = (%d,%d)\n', z0, P.epsilon, k12, k112);
@@ -502,7 +483,6 @@ function compare_gain()
             min(gamma_a), max(gamma_a), P.gamma);
 
     % ---------------- how long would the adaptive controller actually take? ----
-    % ||z|| -> 0 along the ray from z0 with the mean gain of this run.
     gamma_bar = mean(gamma_a);
     targets   = [0.5 0.1 0.01 0.001];
     t_need    = eta_ray(z0, gamma_bar, h_fun, targets);
@@ -529,7 +509,7 @@ function compare_gain()
     fprintf(' limits AND eps*gamma*h <= %.2f, see gamma_ray; time from eta_ray)\n', P.cap_product);
     fprintf('%10s %14s %14s %14s %14s\n', 'eps [s]', 'gamma', 'eps*g*hmax', 'min to 10%', 'min to 1%');
     for i = 1:n_sweep
-        Q = params(eps_sweep(i));                         % epsilon AND omega
+        Q = params(eps_sweep(i));
         [gmax_sweep(i), hmax] = gamma_ray(z0, alpha, Q.omega, Q.epsilon, k12, k112, ...
                                           U1_MAX, U2_MAX, h_fun, P.cap_product);
         t = eta_ray(z0, gmax_sweep(i), h_fun, [0.1 0.01]) / 60;
@@ -542,7 +522,6 @@ function compare_gain()
              '      as verified against the exact kinematics for this start state; for\n' ...
              '      larger eps (and for two trailers beyond eps ~ 4 s the approximation\n' ...
              '      broke down) check with compare_physical before believing it.\n']);
-
 
     figure('Name', 'gamma_max and ETA vs epsilon (1 trailer)', 'NumberTitle', 'off');
     subplot(1,2,1)
@@ -593,7 +572,6 @@ function compare_gain()
     fprintf('\n=== Done. ===\n');
 end
 
-
 function compare_V()
 % COMPARE_V  Candidate Lyapunov functions, ranked under the robot's limits.
 % ONE-TRAILER (r=3, 4-state) version -- see "2 trailers/compare_V.m".
@@ -625,7 +603,6 @@ function compare_V()
     U1 = P.u1_max;  U2 = P.u2_max;
     z0 = P.z0;  r0 = norm(z0);  zhat = z0/r0;
 
-    % {label, h}
     CAND = { ...
         ['in use: ' P.lyap_name],                 P.h_fun; ...
         'quadratic  V = gamma*r^2/2',             @(z) 1; ...
@@ -637,7 +614,7 @@ function compare_V()
         'sqrt d=0.01',                            @(z) 1/sqrt(norm(z)^2 + 0.01^2); ...
         'sqrt d=0.005',                           @(z) 1/sqrt(norm(z)^2 + 0.005^2) };
 
-    rs = r0 * logspace(-3, 0, 200);    % the ray, from 0.1% of ||z0|| up to it
+    rs = r0 * logspace(-3, 0, 200);
 
     fprintf('||z0|| = %.5f,  limits |u1|<=%.2f, |u2|<=%.2f,  k=(%d,%d), eps=%.1f, cap=%.2f\n\n', ...
             r0, U1, U2, k12, k112, P.epsilon, P.cap_product);
@@ -676,7 +653,6 @@ function compare_V()
              '100%% marks the limit that sets gamma (or the cap does, if eps*g*h = cap).\n']);
 end
 
-
 function convergence_map()
 % CONVERGENCE_MAP  Does (epsilon, gamma) converge, overshoot, or diverge?
 % ONE-TRAILER (r=3, 4-state) version -- see "2 trailers/convergence_map.m"
@@ -694,7 +670,7 @@ function convergence_map()
     k12 = P.k12;  k112 = P.k112;
     z0 = P.z0;  t_start = P.t_start;
 
-    h_fun  = P.h_fun;    % Lyapunov function lives in params.m
+    h_fun  = P.h_fun;
 
     t_end_map = 8;
     dt_map    = 1e-3;
@@ -709,7 +685,7 @@ function convergence_map()
             numel(eps_list), numel(gamma_list), numel(eps_list)*numel(gamma_list), t_end_map);
     tic
     for i = 1:numel(eps_list)
-        Q       = params(eps_list(i));           % epsilon AND omega together
+        Q       = params(eps_list(i));
         eps_i   = Q.epsilon;
         omega_i = Q.omega;
         for j = 1:numel(gamma_list)
@@ -778,7 +754,6 @@ function convergence_map()
     fprintf('\n=== Done. ===\n');
 end
 
-
 function T = search_k(kmax, eps_override)
 %SEARCH_K  Heuristically-admissible (k12,k112) pairs, ranked by admissible
 %   gain. ONE-TRAILER (r=3) version -- mirrors "2 trailers/search_k.m",
@@ -792,7 +767,7 @@ function T = search_k(kmax, eps_override)
     if nargin < 1, kmax = 15; end
     P = params();
     if nargin >= 2
-        P = params(eps_override);             % epsilon AND omega together
+        P = params(eps_override);
     end
     alpha = P.alpha;
     gamma = P.gamma;  epsilon = P.epsilon;  w = P.omega;
@@ -836,11 +811,7 @@ function T = search_k(kmax, eps_override)
     fprintf('heuristic_no_multiple and the note in params.m)\n\n');
 end
 
-
-% =========================================================================
-%  SIMULATORS -- the three closed loops (approximate / adaptive gain / exact kinematics)
-% =========================================================================
-
+% ---- SIMULATORS -- the three closed loops (approximate / adaptive gain / exact kinematics) ----
 
 function [t_out, z_out, u1_out, u2_out] = simulate_case( ...
         z0, alpha, gamma_val, ...
@@ -914,7 +885,6 @@ function [t_out, z_out, u1_out, u2_out] = simulate_case( ...
         u2_out(i) = u2_ctrl(t_out(i), zf, omega, k12, k112, alpha, gamma_val, h_fun);
     end
 end
-
 
 function [t_out, z_out, u1_out, u2_out, gamma_out] = simulate_case_adaptive( ...
         z0, alpha, ...
@@ -1001,7 +971,6 @@ function [t_out, z_out, u1_out, u2_out, gamma_out] = simulate_case_adaptive( ...
     end
 end
 
-
 function [t_out, x_out, z_out, u1_out, u2_out] = simulate_case_physical( ...
         x0, d0, l1, alpha, gamma_val, epsilon, omega, k12, k112, ...
         t_start, t_end, dt, h_fun)
@@ -1086,7 +1055,6 @@ function [t_out, x_out, z_out, u1_out, u2_out] = simulate_case_physical( ...
     end
 end
 
-
 function dx = rhs_x(t, x, zf, d0, l1, omega, k12, k112, alpha, gamma_val, h_fun)
 %RHS_X  Exact kinematics (fields_exact), driven by the controller.
     [f1, f2] = fields_exact(x, d0, l1);
@@ -1095,11 +1063,7 @@ function dx = rhs_x(t, x, zf, d0, l1, omega, k12, k112, alpha, gamma_val, h_fun)
     dx = f1*u1 + f2*u2;
 end
 
-
-% =========================================================================
-%  CONTROLLER -- u1, u2, amplitudes, worst-case bound
-% =========================================================================
-
+% ---- CONTROLLER -- u1, u2, amplitudes, worst-case bound ----
 
 function dz = rhs_approx(t, z, zf, g1_fun, g2_fun, omega, k12, k112, ...
                          alpha, gamma_val, h_fun)
@@ -1121,7 +1085,6 @@ function dz = rhs_approx(t, z, zf, g1_fun, g2_fun, omega, k12, k112, ...
     dz = g1*u1 + g2*u2;
 end
 
-
 function u1_val = u1_ctrl(t, zf, omega, k12, k112, alpha, gamma_val, h_fun)
 %U1_CTRL  Driving velocity u1 [m/s] at time t, for the state zf frozen at the
 %   start of the current sampling interval. ONE-TRAILER (r=3): two
@@ -1132,7 +1095,6 @@ function u1_val = u1_ctrl(t, zf, omega, k12, k112, alpha, gamma_val, h_fun)
         + T112 * cos(k112*omega*t);
 end
 
-
 function u2_val = u2_ctrl(t, zf, omega, k12, k112, alpha, gamma_val, h_fun)
 %U2_CTRL  Steering velocity u2 [rad/s] at time t, for the state zf frozen at
 %   the start of the current sampling interval. ONE-TRAILER (r=3): two
@@ -1142,7 +1104,6 @@ function u2_val = u2_ctrl(t, zf, omega, k12, k112, alpha, gamma_val, h_fun)
         + T12 * s12 * sin(k12*omega*t) ...
         - 2*T112 * s112 * cos(2*k112*omega*t);
 end
-
 
 function [a1, a2, s12, s112, T12, T112] = osc_terms( ...
         zf, alpha, gamma_val, omega, k12, k112, h_fun)
@@ -1161,7 +1122,6 @@ function [a1, a2, s12, s112, T12, T112] = osc_terms( ...
     s12 = sign(a12);  s112 = sign(a112);
 end
 
-
 function [a1, a2, a12, a112] = amps(zf, alpha, gamma_val, h_fun)
 %AMPS  The four amplitudes, a(z) = -gamma*h(z)*G^{-1}(z)*z. ONE-TRAILER
 %   (r=3) version; the closed forms are checked against the symbolic
@@ -1173,7 +1133,6 @@ function [a1, a2, a12, a112] = amps(zf, alpha, gamma_val, h_fun)
     a12  = -gamma_val*h*(zf(1)*zf(2) + zf(3));
     a112 = -gamma_val*h*(alpha*zf(2)^3 + zf(1)*zf(3) + zf(4));
 end
-
 
 function [b1, b2, terms1, terms2] = control_bound(z, alpha, gamma_val, ...
                                                   omega, k12, k112, h_fun)
@@ -1189,7 +1148,7 @@ function [b1, b2, terms1, terms2] = control_bound(z, alpha, gamma_val, ...
     % params.m). It scales ALL amplitudes, so leaving it out makes this
     % bound wrong by exactly that factor.
     if nargin < 7 || isempty(h_fun)
-        h_fun = @(zz) 1;            % plain quadratic Lyapunov function
+        h_fun = @(zz) 1;
     end
     [a1, a2, ~, ~, T12, T112] = osc_terms(z, alpha, gamma_val, omega, k12, k112, h_fun);
 
@@ -1200,11 +1159,7 @@ function [b1, b2, terms1, terms2] = control_bound(z, alpha, gamma_val, ...
     b2 = sum(terms2);
 end
 
-
-% =========================================================================
-%  GAINS -- admissible gamma and time to converge
-% =========================================================================
-
+% ---- GAINS -- admissible gamma and time to converge ----
 
 function g = gamma_max(z, alpha, omega, k12, k112, u1max, u2max, h_fun)
 %GAMMA_MAX  Largest gain for which BOTH velocity limits still hold at state z.
@@ -1212,7 +1167,7 @@ function g = gamma_max(z, alpha, omega, k12, k112, u1max, u2max, h_fun)
 %   between 1e-16 and 10.
 
     if nargin < 8 || isempty(h_fun)
-        h_fun = @(zz) 1;            % plain quadratic Lyapunov function
+        h_fun = @(zz) 1;
     end
 
     lo = 1e-16;
@@ -1228,7 +1183,6 @@ function g = gamma_max(z, alpha, omega, k12, k112, u1max, u2max, h_fun)
     end
     g = lo;
 end
-
 
 function [g, hmax] = gamma_ray(z0, alpha, omega, epsilon, k12, k112, ...
                                u1max, u2max, h_fun, cap_product)
@@ -1258,7 +1212,6 @@ function [g, hmax] = gamma_ray(z0, alpha, omega, epsilon, k12, k112, ...
     g = min(g, cap_product/(epsilon*hmax));
 end
 
-
 function t = eta_ray(z0, gamma_val, h_fun, fracs)
 %ETA_RAY  Time [s] until ||z|| has dropped to frac*||z0||, for any radial V.
 %
@@ -1282,11 +1235,7 @@ function t = eta_ray(z0, gamma_val, h_fun, fracs)
     end
 end
 
-
-% =========================================================================
-%  COORDINATES AND VECTOR FIELDS
-% =========================================================================
-
+% ---- COORDINATES AND VECTOR FIELDS ----
 
 function [g1, g2] = fields_approx(z, alpha)
 %FIELDS_APPROX  Vector fields of the nilpotent approximation of the car with
@@ -1300,7 +1249,6 @@ function [g1, g2] = fields_approx(z, alpha)
     g2 = [0; 1; 0; -alpha*z(2)^2];
 end
 
-
 function [f1, f2] = fields_exact(x, d0, l1)
 %FIELDS_EXACT  Exact kinematics of the car with ONE off-hooked trailer:
 %   x' = u1*f1(x) + u2*f2(x),  x = [x1; x2; phi; theta1], angles in radians.
@@ -1312,7 +1260,6 @@ function [f1, f2] = fields_exact(x, d0, l1)
     f1 = [cos(x3); sin(x3); 0;  sin(x3 - x4)/l1];
     f2 = [0;       0;       1; -d0*cos(x3 - x4)/l1];
 end
-
 
 function z = x_to_z(x, d0, l1)
 %X_TO_Z  Physical state -> privileged coordinates. ONE-TRAILER (r=3).
@@ -1334,7 +1281,6 @@ function z = x_to_z(x, d0, l1)
           l1*x(2) - d0*l1^2/(d0+l1)*x(3) - l1^3/(d0+l1)*x(4) ];
 end
 
-
 function x = z_to_x(z, d0, l1)
 %Z_TO_X  Privileged coordinates -> physical state. Exact inverse of
 %   x_to_z (angles in RADIANS). Useful for plotting where the vehicle
@@ -1349,11 +1295,7 @@ function x = z_to_x(z, d0, l1)
           (-l1*z(3) - A*z(2) - z(4))/B ];
 end
 
-
-% =========================================================================
-%  k-PAIR SCREEN
-% =========================================================================
-
+% ---- k-PAIR SCREEN ----
 
 function ok = heuristic_no_multiple(a, b)
 %HEURISTIC_NO_MULTIPLE  Practical placeholder non-resonance check for the
